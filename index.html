@@ -636,21 +636,33 @@
                 async fetchData() {
                     this.loading = true;
                     try {
-                        const [{ data: animes, error: err1 }, { data: seasons, error: err2 }] = await Promise.all([
-                            supabaseClient.from('animes').select('*'),
-                            supabaseClient.from('seasons').select('*')
-                        ]);
+                        // Fetch animes and their nested seasons in a single query using the foreign key relationship
+                        const { data: animes, error } = await supabaseClient
+                            .from('animes')
+                            .select('*, seasons(*)');
 
-                        if (err1 || err2) throw err1 || err2;
+                        if (error) throw error;
 
-                        this.animeList = animes.map(anime => {
-                            const matchedSeasons = seasons.filter(s => s.anime_title.toLowerCase().trim() === anime.title.toLowerCase().trim());
-                            return {
-                                ...anime,
-                                expanded: false,
-                                seasons: matchedSeasons
-                            };
+                        this.animeList = animes.map(anime => ({
+                            ...anime,
+                            expanded: false,
+                            seasons: anime.seasons || []
+                        }));
+
+                        this.animeList.sort((a, b) => {
+                            let rA = a.rank ? parseInt(a.rank.replace(/\D/g, '')) : 999999;
+                            let rB = b.rank ? parseInt(b.rank.replace(/\D/g, '')) : 999999;
+                            return rA - rB;
                         });
+
+                        this.loading = false;
+                        this.syncStatus = 'Synced with Cloud';
+                    } catch (err) {
+                        console.error(err);
+                        this.syncStatus = 'Sync Error';
+                        this.loading = false;
+                    }
+                }
 
                         this.animeList.sort((a, b) => {
                             let rA = a.rank ? parseInt(a.rank.replace(/\D/g, '')) : 999999;
@@ -693,23 +705,23 @@
                     this.apiResults = [];
                     this.apiError = '';
                     try {
-                        // Fetch directly from Jikan API with &type=tv to weed out movies
-                        const response = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(this.form.title)}&type=tv&limit=5`);
-                        const data = await response.json();
+                        // Query your own Supabase library table instantly
+                        const { data, error } = await supabaseClient
+                            .from('anime_library')
+                            .select('*')
+                            .ilike('title', `%${this.form.title}%`)
+                            .limit(5);
 
-                        if (data.data && data.data.length > 0) {
-                            this.apiResults = data.data.map(anime => ({
-                                mal_id: anime.mal_id,
-                                title: anime.title,
-                                total_ep: anime.episodes || 0,
-                                genre: anime.genres ? anime.genres.map(g => g.name).join(', ') : ''
-                            }));
+                        if (error) throw error;
+                
+                        if (data && data.length > 0) {
+                            this.apiResults = data;
                         } else {
-                            this.apiError = 'No TV series found on MyAnimeList.';
+                            this.apiError = 'No match found in your custom library. You can type the details manually.';
                         }
                     } catch (err) {
-                        console.error('MAL API search error:', err);
-                        this.apiError = 'Failed to fetch from MyAnimeList.';
+                        console.error('Database search error:', err);
+                        this.apiError = 'Failed to search your library.';
                     }
                     this.searchingApi = false;
                 },
