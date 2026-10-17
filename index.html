@@ -84,6 +84,11 @@
                         <span>Admin Mode</span>
                     </span>
 
+                    <button @click="showTutorial = true" class="text-slate-400 hover:text-indigo-400 text-xs font-semibold px-3 py-2 rounded-lg transition-colors flex items-center space-x-1.5 bg-dark-900 border border-dark-700" title="How It Works">
+                        <i class="fa-solid fa-circle-question text-sm"></i>
+                        <span class="hidden sm:inline">How It Works</span>
+                    </button>
+
                     <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full font-medium" x-text="syncStatus"></span>
                     <button @click="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
                         <i class="fa-solid fa-plus"></i>
@@ -366,6 +371,68 @@
         </div>
     </div>
 
+    <!-- How It Works / Tutorial Modal -->
+    <div x-show="showTutorial" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex items-center justify-between border-b border-dark-700 pb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-indigo-600 p-2.5 rounded-xl text-white shadow-md shadow-indigo-500/20">
+                        <i class="fa-solid fa-book-open text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white">How It Works</h3>
+                        <p class="text-xs text-slate-400">Your quick start guide to managing your anime watchlist</p>
+                    </div>
+                </div>
+                <button @click="showTutorial = false" class="text-slate-400 hover:text-white text-lg p-2 transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-6 text-sm text-slate-300">
+                <!-- Step 1 -->
+                <div class="flex items-start space-x-4">
+                    <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">1</div>
+                    <div class="space-y-1">
+                        <h4 class="font-semibold text-white">Adding a Series</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">"Add Anime"</strong> button in the top right. Enter your series title, current status (Watching, Completed, Plan to Watch, etc.), episode count, favorite character, and personal rank.</p>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="flex items-start space-x-4">
+                    <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">2</div>
+                    <div class="space-y-1">
+                        <h4 class="font-semibold text-white">Tracking Seasons, Arcs & Movies</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">chevron arrow ( > )</strong> next to any anime row to expand its details. From there, click <strong class="text-indigo-400">"Add Entry"</strong> to track individual seasons, movie entries, or specific story arcs. Your parent series episode counts update automatically!</p>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="flex items-start space-x-4">
+                    <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">3</div>
+                    <div class="space-y-1">
+                        <h4 class="font-semibold text-white">Searching & Filtering</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Use the search bar to instantly find titles or genres. Click any status filter button (like <strong class="text-amber-400">Watching</strong> or <strong class="text-emerald-400">Completed</strong>) above the table to organize your view.</p>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="flex items-start space-x-4">
+                    <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">4</div>
+                    <div class="space-y-1">
+                        <h4 class="font-semibold text-white">Cloud Sync & Security</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Your data is securely stored in Supabase and tied to your personal login. You can access your watchlist from any device by simply logging into your account.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-4 border-t border-dark-700">
+                <button @click="showTutorial = false" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2.5 rounded-xl text-xs transition-colors shadow-lg shadow-indigo-600/20">Got it, let's go!</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // REPLACE WITH YOUR SUPABASE CREDENTIALS
         const SUPABASE_URL = 'https://recqbzvgyolrjnnhdtxj.supabase.co';
@@ -395,6 +462,7 @@
                 animeList: [],
                 showModal: false,
                 showSeasonModal: false,
+                showTutorial: false,
                 form: { id: null, title: '', status: 'Watching', ep_watched: 0, mov_watched: 0, total_ep: 12, total_mov: 0, rank: '', fav_char: '', genre: '', notes: '' },
                 seasonForm: { id: null, anime_title: '', season_name: '', status: 'Watching', ep_watched: 0, total_ep: 12, fav_char: '', genre: '' },
                 
@@ -487,7 +555,6 @@
                     this.authError = '';
                     this.authInfo = '';
                     
-                    // Fallback in case browser autofill filled the email without triggering Alpine
                     const emailInput = document.querySelector('input[type="email"]');
                     if (!this.authEmail && emailInput) this.authEmail = emailInput.value;
 
