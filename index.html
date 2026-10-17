@@ -486,7 +486,12 @@
                 async sendPasswordReset() {
                     this.authError = '';
                     this.authInfo = '';
-                    const email = this.authEmail.trim().toLowerCase();
+                    
+                    // Fallback in case browser autofill filled the email without triggering Alpine
+                    const emailInput = document.querySelector('input[type="email"]');
+                    if (!this.authEmail && emailInput) this.authEmail = emailInput.value;
+
+                    const email = (this.authEmail || '').trim().toLowerCase();
                     if (!email) {
                         this.authError = 'Enter your email address above, then click "Forgot password?" again.';
                         return;
@@ -501,7 +506,7 @@
                             this.authError = 'Too many reset emails were requested. Please wait a while and try again.';
                         } else if (/error sending/i.test(error.message)) {
                             this.authError = "We couldn't send the reset email right now. Please try again later.";
-                            console.error('Supabase failed to send recovery email (check Auth > SMTP settings):', error);
+                            console.error('Supabase failed to send recovery email:', error);
                         } else {
                             this.authError = error.message;
                         }
