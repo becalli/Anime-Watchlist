@@ -287,11 +287,8 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div class="col-span-2 relative">
                     <label class="block text-slate-400 mb-1">Title</label>
-                    <div class="flex space-x-2">
-                        <input type="text" x-model="form.title" @input="API()" @keydown.enter.prevent="API()" placeholder="Type anime name..." class="w-full bg-dark-900 border border-dark-700 rounded-lg p-2 text-white">
-                        <button type="button" @click="API()" :disabled="searchingApi" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap">
-                            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> <span x-text="searchingApi ? 'Searching...' : 'Auto-Fill'"></span>
-                        </button>
+                    <div>
+                        <input type="text" x-model="form.title" @input="searchAnimeAPI()" placeholder="Type anime name..." class="w-full bg-dark-900 border border-dark-700 rounded-lg p-2 text-white">
                     </div>
                     <!-- API Search Results Dropdown -->
                     <div x-show="apiResults.length > 0" class="absolute z-50 left-0 right-0 mt-1 bg-dark-900 border border-dark-700 rounded-lg shadow-2xl max-h-48 overflow-y-auto divide-y divide-dark-700">
@@ -657,7 +654,8 @@
                 },
                 async searchAnimeAPI() {
                     if (!this.form.title.trim()) {
-                        this.apiError = 'Please enter a title to search.';
+                        this.apiResults = [];
+                        this.apiError = '';
                         return;
                     }
                     this.searchingApi = true;
@@ -668,15 +666,24 @@
                             .from('anime_library')
                             .select('*')
                             .ilike('title', `%${this.form.title}%`)
-                            .eq('type', 'TV') // Only grab main TV series, leaving movies and standalone seasons out
-                            .limit(5);
+                            .limit(15);
                 
                         if (error) throw error;
                 
                         if (data && data.length > 0) {
-                            this.apiResults = data;
+                            // Filter out secondary seasons, movies, OVAs, and specials so only main series show up
+                            const mainSeriesOnly = data.filter(item => {
+                                const titleLower = item.title.toLowerCase();
+                                return !titleLower.includes('season') && 
+                                       !titleLower.includes('movie') && 
+                                       !titleLower.includes('ova') && 
+                                       !titleLower.includes('special') &&
+                                       !titleLower.includes('film');
+                            });
+                
+                            this.apiResults = mainSeriesOnly.slice(0, 5);
                         } else {
-                            this.apiError = 'No main series found in your library.';
+                            this.apiResults = [];
                         }
                     } catch (err) {
                         console.error('Database search error:', err);
