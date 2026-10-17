@@ -693,23 +693,23 @@
                     this.apiResults = [];
                     this.apiError = '';
                     try {
-                        // Query your own Supabase library table instantly
-                        const { data, error } = await supabaseClient
-                            .from('anime_library')
-                            .select('*')
-                            .ilike('title', `%${this.form.title}%`)
-                            .limit(5);
+                        // Fetch directly from Jikan API with &type=tv to weed out movies
+                        const response = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(this.form.title)}&type=tv&limit=5`);
+                        const data = await response.json();
 
-                        if (error) throw error;
-                
-                        if (data && data.length > 0) {
-                            this.apiResults = data;
+                        if (data.data && data.data.length > 0) {
+                            this.apiResults = data.data.map(anime => ({
+                                mal_id: anime.mal_id,
+                                title: anime.title,
+                                total_ep: anime.episodes || 0,
+                                genre: anime.genres ? anime.genres.map(g => g.name).join(', ') : ''
+                            }));
                         } else {
-                            this.apiError = 'No match found in your custom library. You can type the details manually.';
+                            this.apiError = 'No TV series found on MyAnimeList.';
                         }
                     } catch (err) {
-                        console.error('Database search error:', err);
-                        this.apiError = 'Failed to search your library.';
+                        console.error('MAL API search error:', err);
+                        this.apiError = 'Failed to fetch from MyAnimeList.';
                     }
                     this.searchingApi = false;
                 },
