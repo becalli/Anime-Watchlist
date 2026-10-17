@@ -280,14 +280,28 @@
         </main>
     </div>
 
-    <!-- Main Anime Modal Form -->
+    <!-- Main Anime Modal Form with Jikan API Auto-Fill -->
     <div x-show="showModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-dark-800 border border-dark-700 rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl">
             <h3 class="text-lg font-bold text-white" x-text="form.id ? 'Edit Anime' : 'Add New Anime'"></h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div class="col-span-2">
+                <div class="col-span-2 relative">
                     <label class="block text-slate-400 mb-1">Title</label>
-                    <input type="text" x-model="form.title" class="w-full bg-dark-900 border border-dark-700 rounded-lg p-2 text-white">
+                    <div class="flex space-x-2">
+                        <input type="text" x-model="form.title" placeholder="Type anime name..." class="w-full bg-dark-900 border border-dark-700 rounded-lg p-2 text-white">
+                        <button type="button" @click="searchAnimeAPI()" :disabled="searchingApi" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap">
+                            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> <span x-text="searchingApi ? 'Searching...' : 'Auto-Fill'"></span>
+                        </button>
+                    </div>
+                    <!-- API Search Results Dropdown -->
+                    <div x-show="apiResults.length > 0" class="absolute z-50 left-0 right-0 mt-1 bg-dark-900 border border-dark-700 rounded-lg shadow-2xl max-h-48 overflow-y-auto divide-y divide-dark-700">
+                        <template x-for="anime in apiResults" :key="anime.mal_id">
+                            <div @click="selectMalAnime(anime)" class="p-2.5 hover:bg-dark-700 cursor-pointer flex items-center justify-between text-xs">
+                                <span class="font-medium text-white" x-text="anime.title"></span>
+                                <span class="text-slate-400" x-text="anime.episodes ? `${anime.episodes} eps` : 'Unknown eps'"></span>
+                            </div>
+                        </template>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-slate-400 mb-1">Status</label>
@@ -323,7 +337,7 @@
                 </div>
             </div>
             <div class="flex justify-end space-x-3 pt-4 border-t border-dark-700">
-                <button @click="showModal = false" class="px-4 py-2 bg-dark-700 text-slate-300 rounded-lg text-xs font-semibold">Cancel</button>
+                <button @click="showModal = false; apiResults = []" class="px-4 py-2 bg-dark-700 text-slate-300 rounded-lg text-xs font-semibold">Cancel</button>
                 <button @click="saveAnime()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold">Save to Database</button>
             </div>
         </div>
@@ -390,39 +404,27 @@
             </div>
 
             <div class="space-y-6 text-sm text-slate-300">
-                <!-- Step 1 -->
                 <div class="flex items-start space-x-4">
                     <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">1</div>
                     <div class="space-y-1">
-                        <h4 class="font-semibold text-white">Adding a Series</h4>
-                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">"Add Anime"</strong> button in the top right. Enter your series title, current status (Watching, Completed, Plan to Watch, etc.), episode count, favorite character, and personal rank.</p>
+                        <h4 class="font-semibold text-white">Adding a Series & Auto-Filling</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Click <strong class="text-indigo-400">"Add Anime"</strong>, type the name, and click <strong class="text-indigo-400">"Auto-Fill"</strong> to instantly pull episode counts and genres from MyAnimeList!</p>
                     </div>
                 </div>
 
-                <!-- Step 2 -->
                 <div class="flex items-start space-x-4">
                     <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">2</div>
                     <div class="space-y-1">
                         <h4 class="font-semibold text-white">Tracking Seasons, Arcs & Movies</h4>
-                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">chevron arrow ( > )</strong> next to any anime row to expand its details. From there, click <strong class="text-indigo-400">"Add Entry"</strong> to track individual seasons, movie entries, or specific story arcs. Your parent series episode counts update automatically!</p>
+                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">chevron arrow ( > )</strong> next to any anime row to expand its details and add specific story arcs or movies.</p>
                     </div>
                 </div>
 
-                <!-- Step 3 -->
                 <div class="flex items-start space-x-4">
                     <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">3</div>
                     <div class="space-y-1">
                         <h4 class="font-semibold text-white">Searching & Filtering</h4>
-                        <p class="text-slate-400 text-xs leading-relaxed">Use the search bar to instantly find titles or genres. Click any status filter button (like <strong class="text-amber-400">Watching</strong> or <strong class="text-emerald-400">Completed</strong>) above the table to organize your view.</p>
-                    </div>
-                </div>
-
-                <!-- Step 4 -->
-                <div class="flex items-start space-x-4">
-                    <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">4</div>
-                    <div class="space-y-1">
-                        <h4 class="font-semibold text-white">Cloud Sync & Security</h4>
-                        <p class="text-slate-400 text-xs leading-relaxed">Your data is securely stored in Supabase and tied to your personal login. You can access your watchlist from any device by simply logging into your account.</p>
+                        <p class="text-slate-400 text-xs leading-relaxed">Use the search bar to find titles instantly, or click the status filter buttons to sort through your watchlist.</p>
                     </div>
                 </div>
             </div>
@@ -437,7 +439,6 @@
         // REPLACE WITH YOUR SUPABASE CREDENTIALS
         const SUPABASE_URL = 'https://recqbzvgyolrjnnhdtxj.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_cCEPil0EMC73qRm79ZIfKA_xSYt5ohN';
-        // Read auth info from the email link before Supabase clears it from the URL
         const AUTH_LINK_PARAMS = new URLSearchParams(window.location.hash.slice(1) + '&' + window.location.search.slice(1));
         const SITE_URL = window.location.origin + window.location.pathname;
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -463,6 +464,8 @@
                 showModal: false,
                 showSeasonModal: false,
                 showTutorial: false,
+                searchingApi: false,
+                apiResults: [],
                 form: { id: null, title: '', status: 'Watching', ep_watched: 0, mov_watched: 0, total_ep: 12, total_mov: 0, rank: '', fav_char: '', genre: '', notes: '' },
                 seasonForm: { id: null, anime_title: '', season_name: '', status: 'Watching', ep_watched: 0, total_ep: 12, fav_char: '', genre: '' },
                 
@@ -482,7 +485,6 @@
                     const { data: { session } } = await supabaseClient.auth.getSession();
                     this.user = session ? session.user : null;
                     if (AUTH_LINK_PARAMS.get('error_code') === 'otp_expired' || (this.isRecovery && !this.user)) {
-                        // Email link was opened but no valid session was created
                         this.isRecovery = false;
                         this.authError = 'This email link is invalid or has expired. Please request a new one.';
                     }
@@ -554,7 +556,6 @@
                 async sendPasswordReset() {
                     this.authError = '';
                     this.authInfo = '';
-                    
                     const emailInput = document.querySelector('input[type="email"]');
                     if (!this.authEmail && emailInput) this.authEmail = emailInput.value;
 
@@ -637,7 +638,6 @@
                             };
                         });
 
-                        // Sort by numeric rank
                         this.animeList.sort((a, b) => {
                             let rA = a.rank ? parseInt(a.rank.replace(/\D/g, '')) : 999999;
                             let rB = b.rank ? parseInt(b.rank.replace(/\D/g, '')) : 999999;
@@ -660,11 +660,32 @@
                 },
                 openModal() {
                     this.form = { id: null, title: '', status: 'Watching', ep_watched: 0, mov_watched: 0, total_ep: 12, total_mov: 0, rank: '', fav_char: '', genre: '', notes: '' };
+                    this.apiResults = [];
                     this.showModal = true;
                 },
                 editAnime(anime) {
                     this.form = Object.assign({}, anime);
+                    this.apiResults = [];
                     this.showModal = true;
+                },
+                async searchAnimeAPI() {
+                    if (!this.form.title.trim()) return;
+                    this.searchingApi = true;
+                    this.apiResults = [];
+                    try {
+                        const response = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(this.form.title)}&limit=5`);
+                        const data = await response.json();
+                        this.apiResults = data.data || [];
+                    } catch (err) {
+                        console.error('Failed to fetch anime data:', err);
+                    }
+                    this.searchingApi = false;
+                },
+                selectMalAnime(anime) {
+                    this.form.title = anime.title;
+                    this.form.total_ep = anime.episodes || 12;
+                    this.form.genre = anime.genres ? anime.genres.map(g => g.name).join(', ') : '';
+                    this.apiResults = [];
                 },
                 async saveAnime() {
                     this.syncStatus = 'Saving...';
@@ -731,7 +752,6 @@
                             await supabaseClient.from('seasons').insert([payload]);
                         }
 
-                        // Recalculate parent anime total episodes watched from all its seasons
                         await this.recalculateParentTotals(this.seasonForm.anime_title);
 
                         this.showSeasonModal = false;
