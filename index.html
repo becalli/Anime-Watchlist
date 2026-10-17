@@ -666,25 +666,12 @@
                             .from('anime_library')
                             .select('*')
                             .ilike('title', `%${this.form.title}%`)
-                            .limit(15);
+                            .eq('is_main_series', true) // Instantly filters out seasons at the database level
+                            .limit(5);
                 
                         if (error) throw error;
                 
-                        if (data && data.length > 0) {
-                            // Filter out secondary seasons, movies, OVAs, and specials so only main series show up
-                            const mainSeriesOnly = data.filter(item => {
-                                const titleLower = item.title.toLowerCase();
-                                return !titleLower.includes('season') && 
-                                       !titleLower.includes('movie') && 
-                                       !titleLower.includes('ova') && 
-                                       !titleLower.includes('special') &&
-                                       !titleLower.includes('film');
-                            });
-                
-                            this.apiResults = mainSeriesOnly.slice(0, 5);
-                        } else {
-                            this.apiResults = [];
-                        }
+                        this.apiResults = data || [];
                     } catch (err) {
                         console.error('Database search error:', err);
                         this.apiError = 'Failed to search your library.';
