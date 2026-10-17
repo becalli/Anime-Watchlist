@@ -254,7 +254,7 @@
                                                                         <td class="py-2 px-2 text-slate-400" x-text="season.genre"></td>
                                                                         <td class="py-2 px-2 text-right space-x-2">
                                                                             <button @click="editSeason(anime, season)" class="text-indigo-400 hover:text-indigo-300 text-xs" title="Edit"><i class="fa-solid fa-pen"></i></button>
-                                                                            <button @click="removeSeason(season.id, anime.title)" class="text-rose-400 hover:text-rose-300 text-xs" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                                                            <button @click="removeSeason(season.id, anime.id)" class="text-rose-400 hover:text-rose-300 text-xs" title="Delete"><i class="fa-solid fa-trash"></i></button>
                                                                         </td>
                                                                     </tr>
                                                                 </template>
@@ -480,7 +480,7 @@
                 searchingApi: false,
                 apiResults: [],
                 apiError: '',
-                form: { id: null, title: '', status: 'Watching', ep_watched: 0, mov_watched: 0, total_ep: 12, total_mov: 0, rank: '', fav_char: '', genre: '', notes: '' },
+                form: { id: null, anime_library_id: null, title: '', status: 'Watching', ep_watched: 0, mov_watched: 0, total_ep: 12, total_mov: 0, rank: '', fav_char: '', genre: '', notes: '' },
                 seasonForm: { id: null, anime_title: '', season_name: '', status: 'Watching', ep_watched: 0, total_ep: 12, fav_char: '', genre: '' },
                 
                 async init() {
@@ -726,6 +726,7 @@
                     this.searchingApi = false;
                 },
                 selectMalAnime(anime) {
+                    this.form.anime_library_id = anime.id; // Capture the master library UUID
                     this.form.title = anime.title;
                     this.form.total_ep = anime.total_ep || 12;
                     this.form.genre = anime.genre || '';
@@ -736,6 +737,7 @@
                     this.syncStatus = 'Saving...';
                     try {
                         const payload = {
+                            anime_library_id: this.form.anime_library_id, // Save the relation
                             title: this.form.title,
                             status: this.form.status,
                             ep_watched: this.form.ep_watched || 0,
@@ -748,6 +750,20 @@
                             notes: this.form.notes,
                             user_id: this.user.id
                         };
+                
+                        if (this.form.id) {
+                            await supabaseClient.from('animes').update(payload).eq('id', this.form.id);
+                        } else {
+                            await supabaseClient.from('animes').insert([payload]);
+                        }
+                
+                        this.showModal = false;
+                        this.fetchData();
+                    } catch (err) {
+                        console.error(err);
+                        this.syncStatus = 'Save Error';
+                    }
+                },
 
                         if (this.form.id) {
                             await supabaseClient.from('animes').update(payload).eq('id', this.form.id);
@@ -770,7 +786,17 @@
                     }
                 },
                 openSeasonModal(anime) {
-                    this.seasonForm = { id: null, anime_title: anime.title, season_name: '', status: 'Watching', ep_watched: 0, total_ep: 12, fav_char: anime.fav_char || '', genre: anime.genre || '' };
+                    this.seasonForm = { 
+                        id: null, 
+                        anime_id: anime.id,         // Store the foreign key ID
+                        anime_title: anime.title,   // Kept for display purposes in the modal
+                        season_name: '', 
+                        status: 'Watching', 
+                        ep_watched: 0, 
+                        total_ep: 12, 
+                        fav_char: anime.fav_char || '', 
+                        genre: anime.genre || '' 
+                    };
                     this.showSeasonModal = true;
                 },
                 editSeason(anime, item) {
@@ -781,7 +807,8 @@
                     this.syncStatus = 'Saving Entry...';
                     try {
                         const payload = {
-                            anime_title: this.seasonForm.anime_title,
+                            anime_id: this.seasonForm.anime_id,       // Link via foreign key
+                            anime_title: this.seasonForm.anime_title, // Optional, can keep for legacy text if needed
                             season_name: this.seasonForm.season_name,
                             status: this.seasonForm.status,
                             ep_watched: this.seasonForm.status === 'Completed' ? this.seasonForm.total_ep : (this.seasonForm.ep_watched || 0),
@@ -790,6 +817,23 @@
                             genre: this.seasonForm.genre,
                             user_id: this.user.id
                         };
+                
+                        if (this.seasonForm.id) {
+                            await supabaseClient.from('seasons').update(payload).eq('id', this.seasonForm.id);
+                        } else {
+                            await supabaseClient.from('seasons').insert([payload]);
+                        }
+                
+                        // Recalculate parent totals using the anime_id UUID
+                        await this.recalculateParentTotals(this.seasonForm.anime_id);
+                
+                        this.showSeasonModal = false;
+                        this.fetchData();
+                    } catch (err) {
+                        console.error(err);
+                        this.syncStatus = 'Save Error';
+                    }
+                };
 
                         if (this.seasonForm.id) {
                             await supabaseClient.from('seasons').update(payload).eq('id', this.seasonForm.id);
@@ -806,26 +850,28 @@
                         this.syncStatus = 'Save Error';
                     }
                 },
-                async removeSeason(id, animeTitle) {
+                async removeSeason(seasonId, animeId) {
                     if (confirm('Are you sure you want to delete this entry?')) {
                         this.syncStatus = 'Deleting Entry...';
-                        await supabaseClient.from('seasons').delete().eq('id', id);
-                        await this.recalculateParentTotals(animeTitle);
+                        await supabaseClient.from('seasons').delete().eq('id', seasonId);
+                        await this.recalculateParentTotals(animeId);
                         this.fetchData();
                     }
                 },
-                async recalculateParentTotals(animeTitle) {
-                    const { data: seasons } = await supabaseClient.from('seasons').select('*').eq('anime_title', animeTitle);
+                async recalculateParentTotals(animeId) {
+                    // Fetch all seasons belonging to this specific anime ID
+                    const { data: seasons } = await supabaseClient.from('seasons').select('*').eq('anime_id', animeId);
                     if (!seasons) return;
-
+                
                     let totalEpW = 0;
                     let totalEpT = 0;
                     seasons.forEach(s => {
                         totalEpW += s.ep_watched || 0;
                         totalEpT += s.total_ep || 0;
                     });
-
-                    await supabaseClient.from('animes').update({ ep_watched: totalEpW, total_ep: totalEpT }).eq('title', animeTitle).eq('user_id', this.user.id);
+                
+                    // Update the parent anime record by its ID
+                    await supabaseClient.from('animes').update({ ep_watched: totalEpW, total_ep: totalEpT }).eq('id', animeId);
                 },
                 get filteredAnime() {
                     return this.animeList.filter(item => {
