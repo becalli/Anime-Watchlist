@@ -288,8 +288,8 @@
                 <div class="col-span-2 relative">
                     <label class="block text-slate-400 mb-1">Title</label>
                     <div class="flex space-x-2">
-                        <input type="text" x-model="form.title" @input="searchAnimeAPI()" @keydown.enter.prevent="searchAnimeAPI()" placeholder="Type anime name..." class="w-full bg-dark-900 border border-dark-700 rounded-lg p-2 text-white">
-                        <button type="button" @click="searchAnimeAPI()" :disabled="searchingApi" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap">
+                        <input type="text" x-model="form.title" @input="API()" @keydown.enter.prevent="API()" placeholder="Type anime name..." class="w-full bg-dark-900 border border-dark-700 rounded-lg p-2 text-white">
+                        <button type="button" @click="API()" :disabled="searchingApi" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap">
                             <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> <span x-text="searchingApi ? 'Searching...' : 'Auto-Fill'"></span>
                         </button>
                     </div>
@@ -664,33 +664,19 @@
                     this.apiResults = [];
                     this.apiError = '';
                     try {
-                        // Fetch a bit more so we have room after filtering out seasons/movies
                         const { data, error } = await supabaseClient
                             .from('anime_library')
                             .select('*')
                             .ilike('title', `%${this.form.title}%`)
-                            .limit(15);
+                            .eq('type', 'TV') // Only grab main TV series, leaving movies and standalone seasons out
+                            .limit(5);
                 
                         if (error) throw error;
                 
                         if (data && data.length > 0) {
-                            // Filter out secondary seasons, movies, OVAs, and specials so only main series show up
-                            const mainSeriesOnly = data.filter(item => {
-                                const titleLower = item.title.toLowerCase();
-                                return !titleLower.includes('season') && 
-                                       !titleLower.includes('movie') && 
-                                       !titleLower.includes('ova') && 
-                                       !titleLower.includes('special') &&
-                                       !titleLower.includes('film');
-                            });
-                
-                            this.apiResults = mainSeriesOnly.slice(0, 5);
-                
-                            if (this.apiResults.length === 0) {
-                                this.apiError = 'No main series found (only seasons/movies matched). Try typing more specifically.';
-                            }
+                            this.apiResults = data;
                         } else {
-                            this.apiError = 'No match found in your custom library.';
+                            this.apiError = 'No main series found in your library.';
                         }
                     } catch (err) {
                         console.error('Database search error:', err);
