@@ -288,7 +288,7 @@
                 <div class="col-span-2 relative">
                     <label class="block text-slate-400 mb-1">Title</label>
                     <div class="flex space-x-2">
-                        <input type="text" x-model="form.title" @keydown.enter.prevent="searchAnimeAPI()" placeholder="Type anime name..." class="w-full bg-dark-900 border border-dark-700 rounded-lg p-2 text-white">
+                        <input type="text" x-model="form.title" @input="searchAnimeAPI()" @keydown.enter.prevent="searchAnimeAPI()" placeholder="Type anime name..." class="w-full bg-dark-900 border border-dark-700 rounded-lg p-2 text-white">
                         <button type="button" @click="searchAnimeAPI()" :disabled="searchingApi" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap">
                             <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> <span x-text="searchingApi ? 'Searching...' : 'Auto-Fill'"></span>
                         </button>
@@ -700,7 +700,7 @@
                             status: this.form.status,
                             ep_watched: this.form.ep_watched || 0,
                             mov_watched: this.form.mov_watched || 0,
-                            total_ep: this.form.total_ep || 0,
+                            total_ep: this.form.total_ep || 12,
                             total_mov: this.form.total_mov || 0,
                             rank: this.form.rank,
                             fav_char: this.form.fav_char,
@@ -708,13 +708,31 @@
                             notes: this.form.notes,
                             user_id: this.user.id
                         };
-
-                        if (this.form.id) {
-                            await supabaseClient.from('animes').update(payload).eq('id', this.form.id);
+                
+                        let animeId = this.form.id;
+                
+                        if (animeId) {
+                            // Update existing anime
+                            await supabaseClient.from('animes').update(payload).eq('id', animeId);
                         } else {
-                            await supabaseClient.from('animes').insert([payload]);
+                            // Insert new anime and grab its generated UUID back
+                            const { data, error } = await supabaseClient.from('animes').insert([payload]).select().single();
+                            if (error) throw error;
+                            animeId = data.id;
+                
+                            // Automatically seed a default Season 1 entry
+                            await supabaseClient.from('seasons').insert([{
+                                anime_id: animeId,
+                                season_name: 'Season 1',
+                                status: payload.status,
+                                ep_watched: payload.ep_watched,
+                                total_ep: payload.total_ep,
+                                fav_char: payload.fav_char,
+                                genre: payload.genre,
+                                user_id: this.user.id
+                            }]);
                         }
-
+                
                         this.showModal = false;
                         this.fetchData();
                     } catch (err) {
