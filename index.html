@@ -431,58 +431,58 @@
                     this.authError = '';
                     this.authInfo = '';
                     const emailInput = document.querySelector('input[type="email"]');
-					if (!this.authEmail && emailInput) this.authEmail = emailInput.value;
+                    if (!this.authEmail && emailInput) this.authEmail = emailInput.value;
     
-					const passInputs = document.querySelectorAll('input[type="password"]');
-					for (let input of passInputs) {
-						if (!this.authPassword && input.value && input.offsetParent !== null) {
-							this.authPassword = input.value;
-						}
-					}
+                    const passInputs = document.querySelectorAll('input[type="password"]');
+                    for (let input of passInputs) {
+                        if (!this.authPassword && input.value && input.offsetParent !== null) {
+                            this.authPassword = input.value;
+                        }
+                    }
 
-					const email = (this.authEmail || '').trim().toLowerCase();
-					const password = this.authPassword;
+                    const email = (this.authEmail || '').trim().toLowerCase();
+                    const password = this.authPassword;
     
-					if (!email || !password) {
-						this.authError = 'Please fill in all fields.';
-						return;
-					}
+                    if (!email || !password) {
+                        this.authError = 'Please fill in all fields.';
+                        return;
+                    }
     
-					if (this.isSignUp) {
-						const { data, error } = await supabaseClient.auth.signUp({
-							email,
-							password,
-							options: { emailRedirectTo: SITE_URL }
-						});
-						if (error) {
-							this.authError = error.message;
-						} else if (data.session) {
-							this.authInfo = 'Account created!';
-						} else if (data.user && data.user.identities && data.user.identities.length === 0) {
-							this.authError = 'An account with this email already exists. Sign in instead, or reset your password.';
-						} else {
-							this.authInfo = 'Almost there! Check your inbox and click the confirmation link, then sign in.';
-							this.isSignUp = false;
-							this.authPassword = '';
-						}
-						else {
-							const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-							if (error) {
-								if (error.code === 'email_not_confirmed' || /not confirmed/i.test(error.message)) {
-									this.authError = 'Please confirm your email first. We just sent you a new confirmation link.';
-									await supabaseClient.auth.resend({
-										type: 'signup',
-										email,
-										options: { emailRedirectTo: SITE_URL }
-									});
-								} else if (error.code === 'invalid_credentials' || /invalid login/i.test(error.message)) {
-									this.authError = 'Wrong email or password. If you just signed up, make sure you confirmed your email first.';
-								} else {
-									this.authError = error.message;
-								}
-							}
-						}
-					},
+                    if (this.isSignUp) {
+                        const { data, error } = await supabaseClient.auth.signUp({
+                            email,
+                            password,
+                            options: { emailRedirectTo: SITE_URL }
+                        });
+                        if (error) {
+                            this.authError = error.message;
+                        } else if (data.session) {
+                            this.authInfo = 'Account created!';
+                        } else if (data.user && data.user.identities && data.user.identities.length === 0) {
+                            this.authError = 'An account with this email already exists. Sign in instead, or reset your password.';
+                        } else {
+                            this.authInfo = 'Almost there! Check your inbox and click the confirmation link, then sign in.';
+                            this.isSignUp = false;
+                            this.authPassword = '';
+                        }
+                    } else {
+                        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                        if (error) {
+                            if (error.code === 'email_not_confirmed' || /not confirmed/i.test(error.message)) {
+                                this.authError = 'Please confirm your email first. We just sent you a new confirmation link.';
+                                await supabaseClient.auth.resend({
+                                    type: 'signup',
+                                    email,
+                                    options: { emailRedirectTo: SITE_URL }
+                                });
+                            } else if (error.code === 'invalid_credentials' || /invalid login/i.test(error.message)) {
+                                this.authError = 'Wrong email or password. If you just signed up, make sure you confirmed your email first.';
+                            } else {
+                                this.authError = error.message;
+                            }
+                        }
+                    }
+                },
                 async sendPasswordReset() {
                     this.authError = '';
                     this.authInfo = '';
