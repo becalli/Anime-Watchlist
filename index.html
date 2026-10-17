@@ -295,10 +295,10 @@
                     </div>
                     <!-- API Search Results Dropdown -->
                     <div x-show="apiResults.length > 0" class="absolute z-50 left-0 right-0 mt-1 bg-dark-900 border border-dark-700 rounded-lg shadow-2xl max-h-48 overflow-y-auto divide-y divide-dark-700">
-                        <template x-for="anime in apiResults" :key="anime.mal_id">
+                        <template x-for="anime in apiResults" :key="anime.id">
                             <div @click="selectMalAnime(anime)" class="p-2.5 hover:bg-dark-700 cursor-pointer flex items-center justify-between text-xs">
                                 <span class="font-medium text-white" x-text="anime.title"></span>
-                                <span class="text-slate-400" x-text="anime.episodes ? `${anime.episodes} eps` : 'Unknown eps'"></span>
+                                <span class="text-slate-400" x-text="anime.total_ep ? `${anime.total_ep} eps` : 'Unknown eps'"></span>
                             </div>
                         </template>
                     </div>
@@ -386,7 +386,7 @@
         </div>
     </div>
 
-    <!-- How It Works / Tutorial Modal (Reverted to original 4 steps + autofill) -->
+    <!-- How It Works / Tutorial Modal -->
     <div x-show="showTutorial" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div class="flex items-center justify-between border-b border-dark-700 pb-4">
@@ -405,39 +405,18 @@
             </div>
 
             <div class="space-y-6 text-sm text-slate-300">
-                <!-- Step 1 -->
                 <div class="flex items-start space-x-4">
                     <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">1</div>
                     <div class="space-y-1">
                         <h4 class="font-semibold text-white">Adding a Series & Auto-Filling</h4>
-                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">"Add Anime"</strong> button. Type the title and click <strong class="text-indigo-400">"Auto-Fill"</strong> to instantly fetch episode counts and genres from MyAnimeList!</p>
+                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">"Add Anime"</strong> button. Type the title and click <strong class="text-indigo-400">"Auto-Fill"</strong> to instantly fetch details from your master library!</p>
                     </div>
                 </div>
-
-                <!-- Step 2 -->
                 <div class="flex items-start space-x-4">
                     <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">2</div>
                     <div class="space-y-1">
                         <h4 class="font-semibold text-white">Tracking Seasons, Arcs & Movies</h4>
-                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">chevron arrow ( > )</strong> next to any anime row to expand its details. From there, click <strong class="text-indigo-400">"Add Entry"</strong> to track individual seasons or movie arcs.</p>
-                    </div>
-                </div>
-
-                <!-- Step 3 -->
-                <div class="flex items-start space-x-4">
-                    <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">3</div>
-                    <div class="space-y-1">
-                        <h4 class="font-semibold text-white">Searching & Filtering</h4>
-                        <p class="text-slate-400 text-xs leading-relaxed">Use the search bar to find titles instantly, or click the status filter buttons (like <strong class="text-amber-400">Watching</strong> or <strong class="text-emerald-400">Completed</strong>) to organize your view.</p>
-                    </div>
-                </div>
-
-                <!-- Step 4 -->
-                <div class="flex items-start space-x-4">
-                    <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">4</div>
-                    <div class="space-y-1">
-                        <h4 class="font-semibold text-white">Cloud Sync & Security</h4>
-                        <p class="text-slate-400 text-xs leading-relaxed">Your data is securely stored in Supabase and tied to your personal login account. Access your watchlist from any device anytime.</p>
+                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">chevron arrow ( > )</strong> next to any anime row to expand its details and add individual seasons.</p>
                     </div>
                 </div>
             </div>
@@ -449,7 +428,6 @@
     </div>
 
     <script>
-        // REPLACE WITH YOUR SUPABASE CREDENTIALS
         const SUPABASE_URL = 'https://recqbzvgyolrjnnhdtxj.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_cCEPil0EMC73qRm79ZIfKA_xSYt5ohN';
         const AUTH_LINK_PARAMS = new URLSearchParams(window.location.hash.slice(1) + '&' + window.location.search.slice(1));
@@ -481,7 +459,7 @@
                 apiResults: [],
                 apiError: '',
                 form: { id: null, anime_library_id: null, title: '', status: 'Watching', ep_watched: 0, mov_watched: 0, total_ep: 12, total_mov: 0, rank: '', fav_char: '', genre: '', notes: '' },
-                seasonForm: { id: null, anime_title: '', season_name: '', status: 'Watching', ep_watched: 0, total_ep: 12, fav_char: '', genre: '' },
+                seasonForm: { id: null, anime_id: null, anime_title: '', season_name: '', status: 'Watching', ep_watched: 0, total_ep: 12, fav_char: '', genre: '' },
                 
                 async init() {
                     supabaseClient.auth.onAuthStateChange(async (event, session) => {
@@ -586,9 +564,6 @@
                     if (error) {
                         if (error.status === 429 || /rate limit/i.test(error.message)) {
                             this.authError = 'Too many reset emails were requested. Please wait a while and try again.';
-                        } else if (/error sending/i.test(error.message)) {
-                            this.authError = "We couldn't send the reset email right now. Please try again later.";
-                            console.error('Supabase failed to send recovery email:', error);
                         } else {
                             this.authError = error.message;
                         }
@@ -636,7 +611,6 @@
                 async fetchData() {
                     this.loading = true;
                     try {
-                        // Fetch animes and their nested seasons in a single query using the foreign key relationship
                         const { data: animes, error } = await supabaseClient
                             .from('animes')
                             .select('*, seasons(*)');
@@ -662,21 +636,6 @@
                         this.syncStatus = 'Sync Error';
                         this.loading = false;
                     }
-                }
-
-                        this.animeList.sort((a, b) => {
-                            let rA = a.rank ? parseInt(a.rank.replace(/\D/g, '')) : 999999;
-                            let rB = b.rank ? parseInt(b.rank.replace(/\D/g, '')) : 999999;
-                            return rA - rB;
-                        });
-
-                        this.loading = false;
-                        this.syncStatus = 'Synced with Cloud';
-                    } catch (err) {
-                        console.error(err);
-                        this.syncStatus = 'Sync Error';
-                        this.loading = false;
-                    }
                 },
                 countStatus(statusName) {
                     return this.animeList.filter(item => {
@@ -685,7 +644,7 @@
                     }).length;
                 },
                 openModal() {
-                    this.form = { id: null, title: '', status: 'Watching', ep_watched: 0, mov_watched: 0, total_ep: 12, total_mov: 0, rank: '', fav_char: '', genre: '', notes: '' };
+                    this.form = { id: null, anime_library_id: null, title: '', status: 'Watching', ep_watched: 0, mov_watched: 0, total_ep: 12, total_mov: 0, rank: '', fav_char: '', genre: '', notes: '' };
                     this.apiResults = [];
                     this.apiError = '';
                     this.showModal = true;
@@ -705,7 +664,6 @@
                     this.apiResults = [];
                     this.apiError = '';
                     try {
-                        // Query your own Supabase library table instantly
                         const { data, error } = await supabaseClient
                             .from('anime_library')
                             .select('*')
@@ -717,7 +675,7 @@
                         if (data && data.length > 0) {
                             this.apiResults = data;
                         } else {
-                            this.apiError = 'No match found in your custom library. You can type the details manually.';
+                            this.apiError = 'No match found in your custom library.';
                         }
                     } catch (err) {
                         console.error('Database search error:', err);
@@ -726,7 +684,7 @@
                     this.searchingApi = false;
                 },
                 selectMalAnime(anime) {
-                    this.form.anime_library_id = anime.id; // Capture the master library UUID
+                    this.form.anime_library_id = anime.id;
                     this.form.title = anime.title;
                     this.form.total_ep = anime.total_ep || 12;
                     this.form.genre = anime.genre || '';
@@ -737,7 +695,7 @@
                     this.syncStatus = 'Saving...';
                     try {
                         const payload = {
-                            anime_library_id: this.form.anime_library_id, // Save the relation
+                            anime_library_id: this.form.anime_library_id,
                             title: this.form.title,
                             status: this.form.status,
                             ep_watched: this.form.ep_watched || 0,
@@ -750,20 +708,6 @@
                             notes: this.form.notes,
                             user_id: this.user.id
                         };
-                
-                        if (this.form.id) {
-                            await supabaseClient.from('animes').update(payload).eq('id', this.form.id);
-                        } else {
-                            await supabaseClient.from('animes').insert([payload]);
-                        }
-                
-                        this.showModal = false;
-                        this.fetchData();
-                    } catch (err) {
-                        console.error(err);
-                        this.syncStatus = 'Save Error';
-                    }
-                },
 
                         if (this.form.id) {
                             await supabaseClient.from('animes').update(payload).eq('id', this.form.id);
@@ -786,29 +730,18 @@
                     }
                 },
                 openSeasonModal(anime) {
-                    this.seasonForm = { 
-                        id: null, 
-                        anime_id: anime.id,         // Store the foreign key ID
-                        anime_title: anime.title,   // Kept for display purposes in the modal
-                        season_name: '', 
-                        status: 'Watching', 
-                        ep_watched: 0, 
-                        total_ep: 12, 
-                        fav_char: anime.fav_char || '', 
-                        genre: anime.genre || '' 
-                    };
+                    this.seasonForm = { id: null, anime_id: anime.id, anime_title: anime.title, season_name: '', status: 'Watching', ep_watched: 0, total_ep: 12, fav_char: anime.fav_char || '', genre: anime.genre || '' };
                     this.showSeasonModal = true;
                 },
                 editSeason(anime, item) {
-                    this.seasonForm = Object.assign({}, item, { anime_title: anime.title });
+                    this.seasonForm = Object.assign({}, item, { anime_id: anime.id, anime_title: anime.title });
                     this.showSeasonModal = true;
                 },
                 async saveSeason() {
                     this.syncStatus = 'Saving Entry...';
                     try {
                         const payload = {
-                            anime_id: this.seasonForm.anime_id,       // Link via foreign key
-                            anime_title: this.seasonForm.anime_title, // Optional, can keep for legacy text if needed
+                            anime_id: this.seasonForm.anime_id,
                             season_name: this.seasonForm.season_name,
                             status: this.seasonForm.status,
                             ep_watched: this.seasonForm.status === 'Completed' ? this.seasonForm.total_ep : (this.seasonForm.ep_watched || 0),
@@ -817,31 +750,14 @@
                             genre: this.seasonForm.genre,
                             user_id: this.user.id
                         };
-                
+
                         if (this.seasonForm.id) {
                             await supabaseClient.from('seasons').update(payload).eq('id', this.seasonForm.id);
                         } else {
                             await supabaseClient.from('seasons').insert([payload]);
                         }
-                
-                        // Recalculate parent totals using the anime_id UUID
+
                         await this.recalculateParentTotals(this.seasonForm.anime_id);
-                
-                        this.showSeasonModal = false;
-                        this.fetchData();
-                    } catch (err) {
-                        console.error(err);
-                        this.syncStatus = 'Save Error';
-                    }
-                };
-
-                        if (this.seasonForm.id) {
-                            await supabaseClient.from('seasons').update(payload).eq('id', this.seasonForm.id);
-                        } else {
-                            await supabaseClient.from('seasons').insert([payload]);
-                        }
-
-                        await this.recalculateParentTotals(this.seasonForm.anime_title);
 
                         this.showSeasonModal = false;
                         this.fetchData();
@@ -859,18 +775,16 @@
                     }
                 },
                 async recalculateParentTotals(animeId) {
-                    // Fetch all seasons belonging to this specific anime ID
                     const { data: seasons } = await supabaseClient.from('seasons').select('*').eq('anime_id', animeId);
                     if (!seasons) return;
-                
+
                     let totalEpW = 0;
                     let totalEpT = 0;
                     seasons.forEach(s => {
                         totalEpW += s.ep_watched || 0;
                         totalEpT += s.total_ep || 0;
                     });
-                
-                    // Update the parent anime record by its ID
+
                     await supabaseClient.from('animes').update({ ep_watched: totalEpW, total_ep: totalEpT }).eq('id', animeId);
                 },
                 get filteredAnime() {
