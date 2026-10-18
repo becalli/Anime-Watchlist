@@ -145,6 +145,13 @@
                         <input type="text" x-model="searchQuery" placeholder="Search title or genre..." class="w-full pl-10 pr-4 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
                     </div>
                     <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                        <select x-model="sortBy" class="px-3 py-1.5 bg-dark-900 border border-dark-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-indigo-500">
+                            <option value="rank">Sort: My rank</option>
+                            <option value="title">Sort: Title A-Z</option>
+                            <option value="score">Sort: Score</option>
+                            <option value="year_new">Sort: Newest</option>
+                            <option value="year_old">Sort: Oldest</option>
+                        </select>
                         <template x-for="status in ['All', 'Completed', 'Watching', 'Plan to Watch', 'On Hold', 'Dropped']">
                             <button @click="selectedStatus = status" :class="selectedStatus === status ? 'bg-indigo-600 text-white' : 'bg-dark-900 text-slate-400 hover:bg-dark-700'" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-dark-700" x-text="status"></button>
                         </template>
@@ -452,6 +459,7 @@
                 loading: true,
                 syncStatus: 'Connected',
                 searchQuery: '',
+                sortBy: 'rank',
                 selectedStatus: 'All',
                 animeList: [],
                 showModal: false,
@@ -862,11 +870,22 @@
                     await supabaseClient.from('animes').update({ ep_watched: totalEpW, total_ep: totalEpT }).eq('id', animeId);
                 },
                 get filteredAnime() {
-                    return this.animeList.filter(item => {
+                    const filtered = this.animeList.filter(item => {
                         const matchesSearch = item.title.toLowerCase().includes(this.searchQuery.toLowerCase()) || (item.genre && item.genre.toLowerCase().includes(this.searchQuery.toLowerCase()));
                         if (this.selectedStatus === 'All') return matchesSearch;
                         if (this.selectedStatus === 'Dropped') return matchesSearch && item.status.includes('Dropped');
                         return matchesSearch && item.status === this.selectedStatus;
+                    });
+                    const s = this.sortBy;
+                    if (s === 'rank') return filtered;
+                    const num = (v, fallback) => (v === null || v === undefined || v === '') ? fallback : Number(v);
+                    return [...filtered].sort((a, b) => {
+                        const la = a.library || {}, lb = b.library || {};
+                        if (s === 'title') return a.title.localeCompare(b.title);
+                        if (s === 'score') return num(lb.score, -1) - num(la.score, -1);
+                        if (s === 'year_new') return num(lb.year, -1) - num(la.year, -1);
+                        if (s === 'year_old') return num(la.year, 9999) - num(lb.year, 9999);
+                        return 0;
                     });
                 }
             }
