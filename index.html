@@ -288,7 +288,7 @@
                 <div class="col-span-2 relative">
                     <label class="block text-slate-400 mb-1">Title</label>
                     <div>
-                        <input type="text" x-model="form.title" @input="searchAnimeAPI()" placeholder="Type anime name..." class="w-full bg-dark-900 border border-dark-700 rounded-lg p-2 text-white">
+                        <input type="text" x-model="form.title" @input.debounce.300ms="searchAnimeAPI()" placeholder="Type anime name..." class="w-full bg-dark-900 border border-dark-700 rounded-lg p-2 text-white">
                     </div>
                     <!-- API Search Results Dropdown -->
                     <div x-show="apiResults.length > 0" class="absolute z-50 left-0 right-0 mt-1 bg-dark-900 border border-dark-700 rounded-lg shadow-2xl max-h-48 overflow-y-auto divide-y divide-dark-700">
@@ -336,7 +336,7 @@
             </div>
             <div class="flex justify-end space-x-3 pt-4 border-t border-dark-700">
                 <button @click="showModal = false; apiResults = []; apiError = ''" class="px-4 py-2 bg-dark-700 text-slate-300 rounded-lg text-xs font-semibold">Cancel</button>
-                <button @click="Anime()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold"> to Database</button>
+                <button @click="saveAnime()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold">Save to Database</button>
             </div>
         </div>
     </div>
@@ -378,7 +378,7 @@
             </div>
             <div class="flex justify-end space-x-3 pt-4 border-t border-dark-700">
                 <button @click="showSeasonModal = false" class="px-4 py-2 bg-dark-700 text-slate-300 rounded-lg text-xs font-semibold">Cancel</button>
-                <button @click="Season()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold"> Entry</button>
+                <button @click="saveSeason()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold">Save Entry</button>
             </div>
         </div>
     </div>
@@ -406,7 +406,7 @@
                     <div class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl w-8 h-8 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">1</div>
                     <div class="space-y-1">
                         <h4 class="font-semibold text-white">Adding a Series & Auto-Filling</h4>
-                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">"Add Anime"</strong> button. Type the title and click <strong class="text-indigo-400">"Auto-Fill"</strong> to instantly fetch details from your master library!</p>
+                        <p class="text-slate-400 text-xs leading-relaxed">Click the <strong class="text-indigo-400">"Add Anime"</strong> button. Start typing the title and pick a match from the dropdown to fill in the details from your master library!</p>
                     </div>
                 </div>
                 <div class="flex items-start space-x-4">
@@ -463,8 +463,10 @@
                         if (event === 'PASSWORD_RECOVERY') this.isRecovery = true;
                         this.user = session ? session.user : null;
                         if (this.user) {
-                            await this.checkAdminStatus();
-                            this.fetchData();
+                            setTimeout(async () => {
+                                await this.checkAdminStatus();
+                                this.fetchData();
+                            }, 0);
                         } else {
                             this.isAdmin = false;
                             this.animeList = [];
@@ -601,7 +603,7 @@
                         .from('profiles')
                         .select('role')
                         .eq('id', this.user.id)
-                        .single();
+                        .maybeSingle();
                         
                     this.isAdmin = data && data.role === 'admin';
                 },
@@ -682,6 +684,7 @@
                     this.form.anime_library_id = anime.id;
                     this.form.title = anime.title;
                     this.form.total_ep = anime.total_ep || 12;
+                    this.form.total_mov = anime.total_mov || 0;
                     this.form.genre = anime.genre || '';
                     this.apiResults = [];
                     this.apiError = '';
@@ -707,7 +710,8 @@
                         let animeId = this.form.id;
                 
                         if (animeId) {
-                            await supabaseClient.from('animes').update(payload).eq('id', animeId);
+                            const { error: upErr } = await supabaseClient.from('animes').update(payload).eq('id', animeId);
+                            if (upErr) throw upErr;
                         } else {
                             const { data, error } = await supabaseClient.from('animes').insert([payload]).select().single();
                             if (error) throw error;
@@ -726,6 +730,7 @@
                                     if (librarySeasons && librarySeasons.length > 0) {
                                         const seasonPayloads = librarySeasons.map(s => ({
                                             anime_id: animeId,
+                                            anime_title: payload.title,
                                             season_name: s.title,
                                             status: payload.status,
                                             ep_watched: 0,
@@ -734,7 +739,8 @@
                                             genre: s.genre || payload.genre,
                                             user_id: this.user.id
                                         }));
-                                        await supabaseClient.from('seasons').insert(seasonPayloads);
+                                        const { error: libSeasonErr } = await supabaseClient.from('seasons').insert(seasonPayloads);
+                                        if (libSeasonErr) throw libSeasonErr;
                                         seasonsInserted = true;
                                     }
                                 } catch (e) {
@@ -744,8 +750,9 @@
                 
                             // Fallback: If no child seasons exist or parent_id isn't set up yet, create a default Season 1
                             if (!seasonsInserted) {
-                                await supabaseClient.from('seasons').insert([{
+                                const { error: fbErr } = await supabaseClient.from('seasons').insert([{
                                     anime_id: animeId,
+                                    anime_title: payload.title,
                                     season_name: 'Season 1',
                                     status: payload.status,
                                     ep_watched: payload.ep_watched,
@@ -754,6 +761,7 @@
                                     genre: payload.genre,
                                     user_id: this.user.id
                                 }]);
+                                if (fbErr) throw fbErr;
                             }
                         }
                 
@@ -769,6 +777,7 @@
                     try {
                         const payload = {
                             anime_id: this.seasonForm.anime_id,
+                            anime_title: this.seasonForm.anime_title,
                             season_name: this.seasonForm.season_name,
                             status: this.seasonForm.status,
                             ep_watched: this.seasonForm.status === 'Completed' ? this.seasonForm.total_ep : (this.seasonForm.ep_watched || 0),
@@ -779,9 +788,11 @@
                         };
 
                         if (this.seasonForm.id) {
-                            await supabaseClient.from('seasons').update(payload).eq('id', this.seasonForm.id);
+                            const { error: sUpErr } = await supabaseClient.from('seasons').update(payload).eq('id', this.seasonForm.id);
+                            if (sUpErr) throw sUpErr;
                         } else {
-                            await supabaseClient.from('seasons').insert([payload]);
+                            const { error: sInsErr } = await supabaseClient.from('seasons').insert([payload]);
+                            if (sInsErr) throw sInsErr;
                         }
 
                         await this.recalculateParentTotals(this.seasonForm.anime_id);
@@ -792,6 +803,23 @@
                         console.error(err);
                         this.syncStatus = 'Save Error';
                     }
+                },
+                async removeAnime(animeId) {
+                    if (!confirm('Delete this anime and all of its seasons/entries?')) return;
+                    this.syncStatus = 'Deleting...';
+                    const { error: seasonsErr } = await supabaseClient.from('seasons').delete().eq('anime_id', animeId);
+                    if (seasonsErr) { console.error(seasonsErr); this.syncStatus = 'Delete Error'; return; }
+                    const { error } = await supabaseClient.from('animes').delete().eq('id', animeId);
+                    if (error) { console.error(error); this.syncStatus = 'Delete Error'; return; }
+                    this.fetchData();
+                },
+                openSeasonModal(anime) {
+                    this.seasonForm = { id: null, anime_id: anime.id, anime_title: anime.title, season_name: '', status: 'Watching', ep_watched: 0, total_ep: 12, fav_char: '', genre: anime.genre || '' };
+                    this.showSeasonModal = true;
+                },
+                editSeason(anime, season) {
+                    this.seasonForm = { id: season.id, anime_id: anime.id, anime_title: anime.title, season_name: season.season_name, status: season.status, ep_watched: season.ep_watched || 0, total_ep: season.total_ep || 0, fav_char: season.fav_char || '', genre: season.genre || '' };
+                    this.showSeasonModal = true;
                 },
                 async removeSeason(seasonId, animeId) {
                     if (confirm('Are you sure you want to delete this entry?')) {
