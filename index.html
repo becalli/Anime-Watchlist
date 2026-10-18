@@ -741,13 +741,14 @@
                                     const { data: librarySeasons } = await supabaseClient
                                         .from('anime_library')
                                         .select('*')
-                                        .eq('parent_id', payload.anime_library_id);
+                                        .eq('parent_id', payload.anime_library_id)
+                                        .order('year', { ascending: true });
                 
                                     if (librarySeasons && librarySeasons.length > 0) {
                                         const seasonPayloads = librarySeasons.map(s => ({
                                             anime_id: animeId,
                                             anime_title: payload.title,
-                                            season_name: s.title,
+                                            season_name: (s.title.startsWith(payload.title) && s.title.length > payload.title.length) ? (s.title.slice(payload.title.length).replace(/^[\s:\-]+/, '') || s.title) : s.title,
                                             status: payload.status,
                                             ep_watched: 0,
                                             total_ep: s.total_ep || 12,
@@ -755,8 +756,10 @@
                                             genre: s.genre || payload.genre,
                                             user_id: this.user.id
                                         }));
+                                        seasonPayloads.unshift({ anime_id: animeId, anime_title: payload.title, season_name: 'Season 1', status: payload.status, ep_watched: payload.ep_watched, total_ep: payload.total_ep, fav_char: payload.fav_char, genre: payload.genre, user_id: this.user.id });
                                         const { error: libSeasonErr } = await supabaseClient.from('seasons').insert(seasonPayloads);
                                         if (libSeasonErr) throw libSeasonErr;
+                                        await this.recalculateParentTotals(animeId);
                                         seasonsInserted = true;
                                     }
                                 } catch (e) {
