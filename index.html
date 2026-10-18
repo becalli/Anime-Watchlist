@@ -707,40 +707,42 @@
                         let animeId = this.form.id;
                 
                         if (animeId) {
-                            // Update existing anime
                             await supabaseClient.from('animes').update(payload).eq('id', animeId);
                         } else {
-                            // Insert new anime and grab its generated UUID back
                             const { data, error } = await supabaseClient.from('animes').insert([payload]).select().single();
                             if (error) throw error;
                             animeId = data.id;
                 
                             let seasonsInserted = false;
                 
-                            // Check if the master library has pre-defined seasons linked via parent_id
+                            // Safely attempt to pull linked seasons if parent_id exists in your library table
                             if (payload.anime_library_id) {
-                                const { data: librarySeasons } = await supabaseClient
-                                    .from('anime_library')
-                                    .select('*')
-                                    .eq('parent_id', payload.anime_library_id);
+                                try {
+                                    const { data: librarySeasons } = await supabaseClient
+                                        .from('anime_library')
+                                        .select('*')
+                                        .eq('parent_id', payload.anime_library_id);
                 
-                                if (librarySeasons && librarySeasons.length > 0) {
-                                    const seasonPayloads = librarySeasons.map(s => ({
-                                        anime_id: animeId,
-                                        season_name: s.title,
-                                        status: payload.status,
-                                        ep_watched: 0,
-                                        total_ep: s.total_ep || 12,
-                                        fav_char: '',
-                                        genre: s.genre || payload.genre,
-                                        user_id: this.user.id
-                                    }));
-                                    await supabaseClient.from('seasons').insert(seasonPayloads);
-                                    seasonsInserted = true;
+                                    if (librarySeasons && librarySeasons.length > 0) {
+                                        const seasonPayloads = librarySeasons.map(s => ({
+                                            anime_id: animeId,
+                                            season_name: s.title,
+                                            status: payload.status,
+                                            ep_watched: 0,
+                                            total_ep: s.total_ep || 12,
+                                            fav_char: '',
+                                            genre: s.genre || payload.genre,
+                                            user_id: this.user.id
+                                        }));
+                                        await supabaseClient.from('seasons').insert(seasonPayloads);
+                                        seasonsInserted = true;
+                                    }
+                                } catch (e) {
+                                    console.warn('parent_id lookup skipped:', e);
                                 }
                             }
                 
-                            // Fallback: If no linked seasons are found in the master library, create a default Season 1
+                            // Fallback: If no child seasons exist or parent_id isn't set up yet, create a default Season 1
                             if (!seasonsInserted) {
                                 await supabaseClient.from('seasons').insert([{
                                     anime_id: animeId,
@@ -758,24 +760,9 @@
                         this.showModal = false;
                         this.fetchData();
                     } catch (err) {
-                        console.error(err);
+                        console.error('Save error details:', err);
                         this.syncStatus = 'Save Error';
                     }
-                },
-                async removeAnime(id) {
-                    if (confirm('Are you sure you want to delete this anime?')) {
-                        this.syncStatus = 'Deleting...';
-                        await supabaseClient.from('animes').delete().eq('id', id);
-                        this.fetchData();
-                    }
-                },
-                openSeasonModal(anime) {
-                    this.seasonForm = { id: null, anime_id: anime.id, anime_title: anime.title, season_name: '', status: 'Watching', ep_watched: 0, total_ep: 12, fav_char: anime.fav_char || '', genre: anime.genre || '' };
-                    this.showSeasonModal = true;
-                },
-                editSeason(anime, item) {
-                    this.seasonForm = Object.assign({}, item, { anime_id: anime.id, anime_title: anime.title });
-                    this.showSeasonModal = true;
                 },
                 async saveSeason() {
                     this.syncStatus = 'Saving Entry...';
