@@ -4,15 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anime Watchlist</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: { extend: { colors: { dark: { 900: '#0f172a', 800: '#1e293b', 700: '#334155', 600: '#475569' } } } }
-        }
-    </script>
 </head>
 <body class="bg-dark-900 text-slate-100 font-sans antialiased min-h-screen flex flex-col" x-data="animeDashboard()">
 
@@ -165,6 +160,7 @@
                                     <th class="py-3.5 px-3 w-10"></th>
                                     <th class="py-3.5 px-4">Rank</th>
                                     <th class="py-3.5 px-4">Anime Title</th>
+                                    <th class="py-3.5 px-4">Score</th>
                                     <th class="py-3.5 px-4">Status</th>
                                     <th class="py-3.5 px-4">Episodes</th>
                                     <th class="py-3.5 px-4">Movies</th>
@@ -183,7 +179,16 @@
                                             </button>
                                         </td>
                                         <td class="py-3 px-4 font-bold text-slate-300" x-text="anime.rank || '-'"></td>
-                                        <td class="py-3 px-4 font-medium text-white" x-text="anime.title"></td>
+                                        <td class="py-3 px-4">
+                                            <div class="flex items-center space-x-3">
+                                                <img x-show="anime.library && anime.library.image_url" :src="anime.library && anime.library.image_url" referrerpolicy="no-referrer" loading="lazy" alt="" class="w-9 h-12 rounded object-cover bg-dark-900 flex-shrink-0">
+                                                <div>
+                                                    <div class="font-medium text-white" x-text="anime.title"></div>
+                                                    <div x-show="anime.library && (anime.library.year || anime.library.studio)" class="text-xs text-slate-500" x-text="anime.library ? [anime.library.year, anime.library.studio].filter(Boolean).join(' · ') : ''"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-4 text-slate-300" x-text="anime.library && anime.library.score ? Number(anime.library.score).toFixed(2) : '-'"></td>
                                         <td class="py-3 px-4">
                                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
                                                 :class="{
@@ -214,7 +219,7 @@
                                     <!-- Expandable Dropdown Row -->
                                     <template x-if="anime.expanded">
                                         <tr class="bg-dark-900/60">
-                                            <td colspan="10" class="p-4 pl-12">
+                                            <td colspan="11" class="p-4 pl-12">
                                                 <div class="bg-dark-800 border border-dark-700 rounded-lg p-4 space-y-4">
                                                     <div class="flex items-center justify-between">
                                                         <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider">
@@ -616,7 +621,18 @@
 
                         if (error) throw error;
 
+                        const libIds = [...new Set(animes.map(a => a.anime_library_id).filter(Boolean))];
+                        const libMap = {};
+                        for (let i = 0; i < libIds.length; i += 100) {
+                            const { data: libRows } = await supabaseClient
+                                .from('anime_library')
+                                .select('id, image_url, score, year, studio')
+                                .in('id', libIds.slice(i, i + 100));
+                            (libRows || []).forEach(l => { libMap[l.id] = l; });
+                        }
+
                         this.animeList = animes.map(anime => ({
+                            library: libMap[anime.anime_library_id] || null,
                             ...anime,
                             expanded: false,
                             seasons: anime.seasons || []
